@@ -1,0 +1,22 @@
+@echo off
+setlocal enabledelayedexpansion
+
+REM === 変換対象フォルダを指定（このバッチと同じフォルダなら "." のままでOK） ===
+set "TARGET_DIR=."
+
+REM === 対象の拡張子 ===
+for %%f in ("%TARGET_DIR%\*.*") do (
+    REM ファイル名と拡張子を分解
+    set "name=%%~nf"
+    set "ext=%%~xf"
+
+    REM すでに .jpg の場合はスキップ
+    if /I not "!ext!"==".jpg" (
+        echo Renaming: %%f → !name!.jpg
+        ren "%%f" "!name!.jpg"
+    )
+)
+
+echo.
+echo === 拡張子の変更が完了しました！ ===
+pause
