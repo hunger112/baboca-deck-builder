@@ -1,3 +1,4 @@
+// src/pages/Home.js
 import React, { useState, useEffect } from "react";
 
 function Home() {
@@ -13,7 +14,9 @@ function Home() {
 
     // 🔹 検索ウィンドウからカード追加
     const handleMessage = (event) => {
+      // ✅ セキュリティ: 同一オリジンチェック
       if (event.origin !== window.location.origin) return;
+
       if (event.data.type === "ADD_CARD_TO_DECK") {
         const card = event.data.card;
         setDeck((prev) => {
@@ -37,11 +40,20 @@ function Home() {
     localStorage.setItem("deck", JSON.stringify(deck));
   }, [deck]);
 
+  // ✅ GitHub Pages + HashRouter対応 検索ボタン（安全版）
   const handleSearch = () => {
-    const url = `${window.location.origin}/search?keyword=${encodeURIComponent(keyword)}`;
-    window.open(url, "searchWindow", "width=600,height=700,left=300,top=100");
+    const encoded = encodeURIComponent(keyword);
+    const base = window.location.origin + window.location.pathname;
+    const url = `${base}#/search?keyword=${encoded}`;
+    // ⚠️ 警告回避: "noopener,noreferrer" を追加
+    window.open(
+      url,
+      "searchWindow",
+      "noopener,noreferrer,width=600,height=700,left=300,top=100"
+    );
   };
 
+  // ✅ デッキ出力（安全版）
   const handleOpenDeckView = () => {
     const totalCards = deck.reduce((sum, card) => sum + card.count, 0);
     if (totalCards > 40) {
@@ -49,9 +61,14 @@ function Home() {
       return;
     }
     localStorage.setItem("deckData", JSON.stringify(deck));
-    window.open("/deck-view", "_blank");
+
+    const base = window.location.origin + window.location.pathname;
+    const url = `${base}#/deck-view`;
+    // ⚠️ 警告回避: "noopener,noreferrer" を追加
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  // 🔹 カウント操作
   const handleIncrease = (index) => {
     const newDeck = [...deck];
     newDeck[index].count += 1;
