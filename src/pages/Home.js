@@ -5,14 +5,12 @@ function Home() {
   const [keyword, setKeyword] = useState("");
   const [deck, setDeck] = useState([]);
 
-  // 🔹 ローカルストレージから初期デッキを読み込み
   useEffect(() => {
     const savedDeck = localStorage.getItem("deck");
     if (savedDeck) {
       setDeck(JSON.parse(savedDeck));
     }
 
-    // 🔹 BroadcastChannel 経由でカード追加を受け取る
     const channel = new BroadcastChannel("deck_channel");
     channel.onmessage = (event) => {
       if (event.data.type === "ADD_CARD_TO_DECK") {
@@ -32,12 +30,10 @@ function Home() {
     return () => channel.close();
   }, []);
 
-  // 🔹 デッキを localStorage に保存
   useEffect(() => {
     localStorage.setItem("deck", JSON.stringify(deck));
   }, [deck]);
 
-  // ✅ 検索ウィンドウを開く（noopener,noreferrer付きでもOK）
   const handleSearch = () => {
     const encoded = encodeURIComponent(keyword);
     const base = window.location.origin + window.location.pathname;
@@ -49,7 +45,6 @@ function Home() {
     );
   };
 
-  // ✅ デッキ出力（DeckViewページへ）
   const handleOpenDeckView = () => {
     const totalCards = deck.reduce((sum, card) => sum + card.count, 0);
     if (totalCards > 40) {
@@ -63,7 +58,6 @@ function Home() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  // 🔹 カウント操作
   const handleIncrease = (index) => {
     const newDeck = [...deck];
     newDeck[index].count += 1;
@@ -87,52 +81,65 @@ function Home() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-3">カード検索</h1>
-      <input
-        type="text"
-        value={keyword}
-        onChange={(e) => setKeyword(e.target.value)}
-        placeholder="キーワードを入力"
-        className="border rounded p-2 mr-2"
-      />
-      <button
-        onClick={handleSearch}
-        className="bg-blue-500 text-white px-4 py-2 rounded"
-      >
-        検索
-      </button>
+      <div className="flex items-center mb-4">
+        <input
+          type="text"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="キーワードを入力"
+          className="border rounded p-2 mr-2"
+        />
+        <button
+          onClick={handleSearch}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          検索
+        </button>
+      </div>
 
-      {/* 現在のデッキ */}
       <h2 className="text-xl font-bold mt-6 mb-2">
         現在のデッキ ({totalCards}枚)
       </h2>
 
+      {/* flex-wrap のカード群 */}
       <div className="flex flex-wrap gap-4">
         {deck.map((card, i) => (
+          // ✅ カードの横幅を固定して中身は縦に揃える（items-start）
           <div
             key={i}
-            className="bg-white p-2 rounded-lg shadow-md flex flex-col items-center"
+            className="bg-white p-3 rounded-lg shadow-md flex flex-col items-start w-[200px]"
           >
-            <img
-              src={card.image}
-              alt={card.name}
-              className="w-[150px] h-auto rounded-md"
-            />
-            <p className="text-center mt-1 text-sm font-medium">
+            {/* ✅ 画像ラッパー：固定サイズ + overflow-hidden */}
+            <div className="w-full h-[260px] overflow-hidden rounded-md bg-gray-100">
+              <img
+                src={card.image}
+                alt={card.name}
+                // ✅ 画像は親にフィットさせて余白を切る
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // もし画像読み込み失敗時に代替（任意）
+                  e.currentTarget.src =
+                    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'%3Eno image%3C/text%3E%3C/svg%3E";
+                }}
+              />
+            </div>
+
+            {/* 名前は行数制限して高さを揃える（必要なら） */}
+            <p className="text-center mt-2 text-sm font-medium w-full line-clamp-2">
               {cleanCardName(card.name)}
             </p>
 
-            {/* ＋−ボタンと削除 */}
-            <div className="flex items-center mt-2">
+            <div className="flex items-center mt-3 w-full justify-center">
               <button
                 onClick={() => handleDecrease(i)}
-                className="bg-gray-300 px-2 py-1 rounded-l"
+                className="bg-gray-300 px-3 py-1 rounded-l"
               >
                 −
               </button>
-              <span className="px-3">{card.count}</span>
+              <span className="px-4 bg-gray-100">{card.count}</span>
               <button
                 onClick={() => handleIncrease(i)}
-                className="bg-gray-300 px-2 py-1 rounded-r"
+                className="bg-gray-300 px-3 py-1 rounded-r"
               >
                 ＋
               </button>
@@ -140,7 +147,7 @@ function Home() {
 
             <button
               onClick={() => handleRemove(i)}
-              className="mt-2 bg-red-500 text-white px-4 py-1 rounded"
+              className="mt-3 bg-red-500 text-white px-4 py-1 rounded w-full"
             >
               削除
             </button>
