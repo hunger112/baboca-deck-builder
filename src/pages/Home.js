@@ -12,11 +12,9 @@ function Home() {
       setDeck(JSON.parse(savedDeck));
     }
 
-    // 🔹 検索ウィンドウからカード追加
-    const handleMessage = (event) => {
-      // ✅ セキュリティ: 同一オリジンチェック
-      if (event.origin !== window.location.origin) return;
-
+    // 🔹 BroadcastChannel 経由でカード追加を受け取る
+    const channel = new BroadcastChannel("deck_channel");
+    channel.onmessage = (event) => {
       if (event.data.type === "ADD_CARD_TO_DECK") {
         const card = event.data.card;
         setDeck((prev) => {
@@ -31,21 +29,19 @@ function Home() {
       }
     };
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    return () => channel.close();
   }, []);
 
-  // 🔹 デッキをlocalStorageに保存
+  // 🔹 デッキを localStorage に保存
   useEffect(() => {
     localStorage.setItem("deck", JSON.stringify(deck));
   }, [deck]);
 
-  // ✅ GitHub Pages + HashRouter対応 検索ボタン（安全版）
+  // ✅ 検索ウィンドウを開く（noopener,noreferrer付きでもOK）
   const handleSearch = () => {
     const encoded = encodeURIComponent(keyword);
     const base = window.location.origin + window.location.pathname;
     const url = `${base}#/search?keyword=${encoded}`;
-    // ⚠️ 警告回避: "noopener,noreferrer" を追加
     window.open(
       url,
       "searchWindow",
@@ -53,7 +49,7 @@ function Home() {
     );
   };
 
-  // ✅ デッキ出力（安全版）
+  // ✅ デッキ出力（DeckViewページへ）
   const handleOpenDeckView = () => {
     const totalCards = deck.reduce((sum, card) => sum + card.count, 0);
     if (totalCards > 40) {
@@ -64,7 +60,6 @@ function Home() {
 
     const base = window.location.origin + window.location.pathname;
     const url = `${base}#/deck-view`;
-    // ⚠️ 警告回避: "noopener,noreferrer" を追加
     window.open(url, "_blank", "noopener,noreferrer");
   };
 

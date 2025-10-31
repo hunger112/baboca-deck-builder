@@ -1,9 +1,20 @@
 // src/pages/SearchWindow.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import mergedCards from "../data/mergedCards";
 
 function SearchWindow() {
-  // ✅ GitHub Pages + HashRouter対応：URLからkeyword取得
+  // ✅ BroadcastChannel（安全に管理するためuseRef使用）
+  const channelRef = useRef(null);
+
+  useEffect(() => {
+    channelRef.current = new BroadcastChannel("deck_channel");
+    return () => {
+      channelRef.current?.close();
+      channelRef.current = null;
+    };
+  }, []);
+
+  // ✅ URLハッシュからkeyword取得（GitHub Pages + HashRouter対応）
   const getKeywordFromHash = () => {
     const hash = window.location.hash; // 例: "#/search?keyword=影山"
     const query = hash.includes("?") ? hash.split("?")[1] : "";
@@ -18,8 +29,9 @@ function SearchWindow() {
   const [statType, setStatType] = useState("サーブ");
   const [minStat, setMinStat] = useState("");
   const [maxStat, setMaxStat] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // ✅ ハッシュ変更時に検索キーワードを再取得
+  // ✅ ハッシュ変更時にkeywordを再取得
   useEffect(() => {
     const handleHashChange = () => {
       setKeyword(getKeywordFromHash());
@@ -28,6 +40,7 @@ function SearchWindow() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
+  // 能力値マップ
   const statMap = {
     サーブ: "サーブ",
     レシーブ: "レシーブ",
@@ -36,7 +49,7 @@ function SearchWindow() {
     ブロック: "ブロック",
   };
 
-  // ✅ 弾順の優先順位を定義
+  // 弾順序の定義
   const setOrder = {
     "HV-P01": 1,
     "HV-D01": 2,
@@ -45,14 +58,12 @@ function SearchWindow() {
     "HVBP": 5,
   };
 
-  // 🔍 フィルタ処理
+  // 🔍 絞り込み処理
   const filteredCards = mergedCards.filter((card) => {
-    // ✅ 全フィルタ未指定なら全件表示
     if (!keyword && !category && !team && !setName && !minStat && !maxStat) {
       return true;
     }
 
-    // ✅ 正規化関数（全角ハイフン対策）
     const normalize = (text) =>
       text
         ?.toLowerCase()
@@ -69,7 +80,6 @@ function SearchWindow() {
     const teamMatch = team ? card.team?.includes(team) : true;
     const setMatch = setName ? card.set === setName : true;
 
-    // ✅ 能力値フィルタ処理（入力がなければスキップ）
     const statKey = statMap[statType];
     const statValueRaw = card.stats?.[statKey];
     const statValue =
@@ -79,7 +89,6 @@ function SearchWindow() {
     const hasRange = minStat !== "" || maxStat !== "";
 
     if (!hasRange) {
-      // → 能力値条件を完全にスキップ
       return keywordMatch && categoryMatch && teamMatch && setMatch;
     }
 
@@ -94,7 +103,7 @@ function SearchWindow() {
     return keywordMatch && categoryMatch && teamMatch && setMatch && statMatch;
   });
 
-  // ✅ 弾ごとにソート（setOrderに従う）
+  // ✅ 弾ごとに並び替え
   const groupedAndSortedCards = Object.entries(
     filteredCards.reduce((acc, card) => {
       const prefix =
@@ -105,9 +114,7 @@ function SearchWindow() {
       return acc;
     }, {})
   )
-    // 🔽 弾の並び順をsetOrderに従ってソート
     .sort(([aKey], [bKey]) => (setOrder[aKey] || 999) - (setOrder[bKey] || 999))
-    // 🔽 各弾の中で番号順にソート
     .flatMap(([_, cardsInSet]) =>
       cardsInSet.sort((a, b) => {
         const aNum = parseInt(a.number?.match(/-(\d+)-?/)?.[1] || 0, 10);
@@ -118,16 +125,15 @@ function SearchWindow() {
 
   // ✅ ページネーション処理
   const cardsPerPage = 20;
-  const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [keyword, category, team, setName, statType, minStat, maxStat]);
-
   const indexOfLast = currentPage * cardsPerPage;
   const indexOfFirst = indexOfLast - cardsPerPage;
   const currentCards = groupedAndSortedCards.slice(indexOfFirst, indexOfLast);
   const totalPages = Math.ceil(groupedAndSortedCards.length / cardsPerPage);
+
+  // ✅ ページ・フィルタ変更時リセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [keyword, category, team, setName, statType, minStat, maxStat]);
 
   const resetFilters = () => {
     setKeyword("");
@@ -140,16 +146,16 @@ function SearchWindow() {
     setCurrentPage(1);
   };
 
-const handleCardClick = (card) => {
-  if (window.opener) {
-    const targetOrigin = window.location.hostname.includes("localhost")
-      ? "http://localhost:3000"
-      : "https://hunger112.github.io";
-
-    window.opener.postMessage({ type: "ADD_CARD_TO_DECK", card }, targetOrigin);
-  }
-};
-
+  // ✅ Homeへ安全にカード送信
+  const handleCardClick = (card) => {
+    if (channelRef.current) {
+      try {
+        channelRef.current.postMessage({ type: "ADD_CARD_TO_DECK", card });
+      } catch (err) {
+        console.warn("BroadcastChannel error:", err);
+      }
+    }
+  };
 
   return (
     <div className="p-4">
@@ -290,21 +296,23 @@ const handleCardClick = (card) => {
             ))}
           </div>
 
+          {/* ページネーション */}
           <div className="flex justify-center mt-6 space-x-2">
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}
                 onClick={() => {
                   setCurrentPage(i + 1);
-                  window.scrollTo({ top: 0, behavior: "smooth" }); // ← これを追加！
-                  }}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === i + 1
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className={`px-3 py-1 rounded ${
+                  currentPage === i + 1
                     ? "bg-blue-500 text-white"
                     : "bg-gray-200 hover:bg-gray-300"
-                    }`}>
-                      {i + 1}
-                    </button>
+                }`}
+              >
+                {i + 1}
+              </button>
             ))}
           </div>
         </>
