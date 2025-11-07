@@ -15,12 +15,17 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-function SortableCard({ card, index, onRemove, onIncrease, onDecrease, cleanCardName }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.number });
+function SortableCard({ card, onRemove, onIncrease, onDecrease, cleanCardName }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: card.number,
+  });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const stopPropagation = (e) => e.stopPropagation();
 
   return (
     <div
@@ -28,7 +33,7 @@ function SortableCard({ card, index, onRemove, onIncrease, onDecrease, cleanCard
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center w-[200px] h-[430px]"
+      className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center w-[200px] h-[430px] cursor-grab active:cursor-grabbing"
     >
       <div className="w-full h-[260px] overflow-hidden rounded-md bg-gray-100">
         <img
@@ -46,20 +51,36 @@ function SortableCard({ card, index, onRemove, onIncrease, onDecrease, cleanCard
         {cleanCardName(card.name)}
       </p>
 
-      {/* ＋−ボタンだけ残して、＜＞削除 */}
-      <div className="flex items-center mt-2 w-full justify-center gap-1">
-        <button onClick={() => onDecrease(index)} className="bg-gray-300 px-3 py-1 rounded-l">
+      {/* ＋−ボタン（ドラッグ無効ゾーン） */}
+      <div
+        className="flex items-center mt-2 w-full justify-center gap-1"
+        onClick={stopPropagation}
+        onMouseDown={stopPropagation}
+        onTouchStart={stopPropagation}
+      >
+        <button
+          onClick={() => onDecrease(card.number)}
+          className="bg-gray-300 px-3 py-1 rounded-l hover:bg-gray-400"
+        >
           −
         </button>
         <span className="px-4 bg-gray-100">{card.count}</span>
-        <button onClick={() => onIncrease(index)} className="bg-gray-300 px-3 py-1 rounded-r">
+        <button
+          onClick={() => onIncrease(card.number)}
+          className="bg-gray-300 px-3 py-1 rounded-r hover:bg-gray-400"
+        >
           ＋
         </button>
       </div>
 
       <button
-        onClick={() => onRemove(index)}
-        className="mt-3 bg-red-500 text-white px-4 py-1 rounded w-full"
+        onClick={(e) => {
+          stopPropagation(e);
+          onRemove(card.number);
+        }}
+        onMouseDown={stopPropagation}
+        onTouchStart={stopPropagation}
+        className="mt-3 bg-red-500 text-white px-4 py-1 rounded w-full hover:bg-red-600"
       >
         削除
       </button>
@@ -71,6 +92,7 @@ function Home() {
   const [keyword, setKeyword] = useState("");
   const [deck, setDeck] = useState([]);
 
+  // 初期ロード
   useEffect(() => {
     const savedDeck = localStorage.getItem("deck");
     if (savedDeck) setDeck(JSON.parse(savedDeck));
@@ -97,6 +119,7 @@ function Home() {
     localStorage.setItem("deck", JSON.stringify(deck));
   }, [deck]);
 
+  // 検索
   const handleSearch = () => {
     const encoded = encodeURIComponent(keyword);
     const base = window.location.origin + window.location.pathname;
@@ -104,6 +127,7 @@ function Home() {
     window.open(url, "searchWindow", "noopener,noreferrer,width=600,height=700,left=300,top=100");
   };
 
+  // デッキ出力
   const handleOpenDeckView = () => {
     const totalCards = deck.reduce((sum, card) => sum + card.count, 0);
     if (totalCards > 40) {
@@ -111,30 +135,39 @@ function Home() {
       return;
     }
     localStorage.setItem("deckData", JSON.stringify(deck));
-
     const base = window.location.origin + window.location.pathname;
     const url = `${base}#/deck-view`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const handleIncrease = (i) => {
-    const newDeck = [...deck];
-    newDeck[i].count += 1;
-    setDeck(newDeck);
+  // ＋−削除
+  const handleIncrease = (number) => {
+    setDeck((prev) =>
+      prev.map((c) => (c.number === number ? { ...c, count: c.count + 1 } : c))
+    );
   };
-  const handleDecrease = (i) => {
-    const newDeck = [...deck];
-    if (newDeck[i].count > 1) newDeck[i].count -= 1;
-    setDeck(newDeck);
+  const handleDecrease = (number) => {
+    setDeck((prev) =>
+      prev.map((c) =>
+        c.number === number && c.count > 1 ? { ...c, count: c.count - 1 } : c
+      )
+    );
   };
-  const handleRemove = (i) => {
-    setDeck(deck.filter((_, idx) => idx !== i));
+  const handleRemove = (number) => {
+    setDeck((prev) => prev.filter((c) => c.number !== number));
   };
 
   const cleanCardName = (name) => name.replace(/_\d+$/, "");
   const totalCards = deck.reduce((sum, c) => sum + c.count, 0);
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  // ✅ ドラッグ判定距離を設定（クリック判定を優先）
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // ← 8px 以上動いた時だけドラッグ扱いにする
+      },
+    })
+  );
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -149,6 +182,7 @@ function Home() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-3">カード検索</h1>
+
       <div className="flex items-center mb-4">
         <input
           type="text"
@@ -167,11 +201,10 @@ function Home() {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={deck.map((c) => c.number)} strategy={rectSortingStrategy}>
           <div className="flex flex-wrap gap-4">
-            {deck.map((card, i) => (
+            {deck.map((card) => (
               <SortableCard
                 key={card.number}
                 card={card}
-                index={i}
                 onRemove={handleRemove}
                 onIncrease={handleIncrease}
                 onDecrease={handleDecrease}
