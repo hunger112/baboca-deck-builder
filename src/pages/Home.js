@@ -1,5 +1,6 @@
 // src/pages/Home.js
 import React, { useState, useEffect } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 function Home() {
   const [keyword, setKeyword] = useState("");
@@ -75,6 +76,15 @@ function Home() {
     setDeck(newDeck);
   };
 
+  // 🔹 並び替え（ドラッグ終了時に順番を更新）
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const newDeck = Array.from(deck);
+    const [moved] = newDeck.splice(result.source.index, 1);
+    newDeck.splice(result.destination.index, 0, moved);
+    setDeck(newDeck);
+  };
+
   const totalCards = deck.reduce((sum, card) => sum + card.count, 0);
   const cleanCardName = (name) => name.replace(/_\d+$/, "");
 
@@ -101,60 +111,72 @@ function Home() {
         現在のデッキ ({totalCards}枚)
       </h2>
 
-      {/* ✅ カード一覧 */}
-      <div className="flex flex-wrap gap-4">
-        {deck.map((card, i) => (
-          <div
-            key={i}
-            className="bg-white p-3 rounded-lg shadow-md flex flex-col items-start w-[200px]"
-          >
-            {/* ✅ 画像 */}
-            <div className="w-full h-[260px] overflow-hidden rounded-md bg-gray-100">
-              <img
-                src={card.image}
-                alt={card.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src =
-                    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'%3Eno image%3C/text%3E%3C/svg%3E";
-                }}
-              />
-            </div>
-
-            {/* ✅ タイトル（折り返し・幅固定） */}
-            <p className="text-center mt-2 text-sm font-medium break-words whitespace-normal w-full max-w-[180px]">
-              {cleanCardName(card.name)}
-            </p>
-
-            {/* ✅ カウント調整 */}
-            <div className="flex items-center mt-2 w-full justify-center">
-              <button
-                onClick={() => handleDecrease(i)}
-                className="bg-gray-300 px-3 py-1 rounded-l"
-              >
-                −
-              </button>
-              <span className="px-4 bg-gray-100">{card.count}</span>
-              <button
-                onClick={() => handleIncrease(i)}
-                className="bg-gray-300 px-3 py-1 rounded-r"
-              >
-                ＋
-              </button>
-            </div>
-
-            {/* ✅ 削除ボタン */}
-            <button
-              onClick={() => handleRemove(i)}
-              className="mt-3 bg-red-500 text-white px-4 py-1 rounded w-full"
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="deck" direction="horizontal">
+          {(provided) => (
+            <div
+              className="flex flex-wrap gap-4"
+              ref={provided.innerRef}
+              {...provided.droppableProps}
             >
-              削除
-            </button>
-          </div>
-        ))}
-      </div>
+              {deck.map((card, i) => (
+                <Draggable key={card.number} draggableId={card.number} index={i}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center w-[200px] h-[430px]"
+                    >
+                      <div className="w-full h-[260px] overflow-hidden rounded-md bg-gray-100">
+                        <img
+                          src={card.image}
+                          alt={card.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'%3Eno image%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
+                      </div>
 
-      {/* ✅ 出力ボタン */}
+                      <p className="text-center mt-2 text-sm font-medium w-full break-words whitespace-normal leading-tight line-clamp-2 h-[3em]">
+                        {cleanCardName(card.name)}
+                      </p>
+
+                      {/* 🔹 カウント操作エリア */}
+                      <div className="flex items-center mt-2 w-full justify-center gap-1">
+                        <button
+                          onClick={() => handleDecrease(i)}
+                          className="bg-gray-300 px-3 py-1 rounded-l"
+                        >
+                          −
+                        </button>
+                        <span className="px-4 bg-gray-100">{card.count}</span>
+                        <button
+                          onClick={() => handleIncrease(i)}
+                          className="bg-gray-300 px-3 py-1 rounded-r"
+                        >
+                          ＋
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => handleRemove(i)}
+                        className="mt-3 bg-red-500 text-white px-4 py-1 rounded w-full"
+                      >
+                        削除
+                      </button>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+
       {deck.length > 0 && totalCards <= 40 && (
         <button
           onClick={handleOpenDeckView}
