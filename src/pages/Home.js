@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-function SortableCard({ card, index, onRemove, onIncrease, onDecrease, moveLeft, moveRight, cleanCardName }) {
+function SortableCard({ card, index, onRemove, onIncrease, onDecrease, cleanCardName }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.number });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -46,21 +46,14 @@ function SortableCard({ card, index, onRemove, onIncrease, onDecrease, moveLeft,
         {cleanCardName(card.name)}
       </p>
 
+      {/* ＋−ボタンだけ残して、＜＞削除 */}
       <div className="flex items-center mt-2 w-full justify-center gap-1">
-        <button onClick={() => moveLeft(index)} className="bg-gray-200 px-2 py-1 rounded">
-          ＜
-        </button>
-
         <button onClick={() => onDecrease(index)} className="bg-gray-300 px-3 py-1 rounded-l">
           −
         </button>
         <span className="px-4 bg-gray-100">{card.count}</span>
         <button onClick={() => onIncrease(index)} className="bg-gray-300 px-3 py-1 rounded-r">
           ＋
-        </button>
-
-        <button onClick={() => moveRight(index)} className="bg-gray-200 px-2 py-1 rounded">
-          ＞
         </button>
       </div>
 
@@ -137,18 +130,6 @@ function Home() {
   const handleRemove = (i) => {
     setDeck(deck.filter((_, idx) => idx !== i));
   };
-  const moveLeft = (i) => {
-    if (i === 0) return;
-    const newDeck = [...deck];
-    [newDeck[i - 1], newDeck[i]] = [newDeck[i], newDeck[i - 1]];
-    setDeck(newDeck);
-  };
-  const moveRight = (i) => {
-    if (i === deck.length - 1) return;
-    const newDeck = [...deck];
-    [newDeck[i + 1], newDeck[i]] = [newDeck[i], newDeck[i + 1]];
-    setDeck(newDeck);
-  };
 
   const cleanCardName = (name) => name.replace(/_\d+$/, "");
   const totalCards = deck.reduce((sum, c) => sum + c.count, 0);
@@ -157,6 +138,7 @@ function Home() {
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       const oldIndex = deck.findIndex((c) => c.number === active.id);
       const newIndex = deck.findIndex((c) => c.number === over.id);
@@ -193,8 +175,6 @@ function Home() {
                 onRemove={handleRemove}
                 onIncrease={handleIncrease}
                 onDecrease={handleDecrease}
-                moveLeft={moveLeft}
-                moveRight={moveRight}
                 cleanCardName={cleanCardName}
               />
             ))}
