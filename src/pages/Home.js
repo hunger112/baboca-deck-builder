@@ -101,12 +101,12 @@ function Home() {
         現在のデッキ ({totalCards}枚)
       </h2>
 
+      {/* ✅ カード一覧 */}
       <div className="flex flex-wrap gap-4">
         {deck.map((card, i) => (
           <div
             key={i}
-            // ✅ 高さ固定＋中央揃えで見た目安定
-            className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center w-[200px] h-[400px]"
+            className="bg-white p-3 rounded-lg shadow-md flex flex-col items-start w-[200px]"
           >
             {/* ✅ 画像 */}
             <div className="w-full h-[260px] overflow-hidden rounded-md bg-gray-100">
@@ -121,8 +121,8 @@ function Home() {
               />
             </div>
 
-            {/* ✅ タイトル：自動折り返し＋2行固定 */}
-            <p className="text-center mt-2 text-sm font-medium w-full break-words whitespace-normal leading-tight line-clamp-2 h-[3em]">
+            {/* ✅ タイトル（折り返し・幅固定） */}
+            <p className="text-center mt-2 text-sm font-medium break-words whitespace-normal w-full max-w-[180px]">
               {cleanCardName(card.name)}
             </p>
 
@@ -143,6 +143,7 @@ function Home() {
               </button>
             </div>
 
+            {/* ✅ 削除ボタン */}
             <button
               onClick={() => handleRemove(i)}
               className="mt-3 bg-red-500 text-white px-4 py-1 rounded w-full"
@@ -153,6 +154,7 @@ function Home() {
         ))}
       </div>
 
+      {/* ✅ 出力ボタン */}
       {deck.length > 0 && totalCards <= 40 && (
         <button
           onClick={handleOpenDeckView}
