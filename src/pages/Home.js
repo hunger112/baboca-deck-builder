@@ -101,35 +101,33 @@ function Home() {
         現在のデッキ ({totalCards}枚)
       </h2>
 
-      {/* flex-wrap のカード群 */}
       <div className="flex flex-wrap gap-4">
         {deck.map((card, i) => (
-          // ✅ カードの横幅を固定して中身は縦に揃える（items-start）
           <div
             key={i}
-            className="bg-white p-3 rounded-lg shadow-md flex flex-col items-start w-[200px]"
+            // ✅ 高さ固定＋中央揃えで見た目安定
+            className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center w-[200px] h-[400px]"
           >
-            {/* ✅ 画像ラッパー：固定サイズ + overflow-hidden */}
+            {/* ✅ 画像 */}
             <div className="w-full h-[260px] overflow-hidden rounded-md bg-gray-100">
               <img
                 src={card.image}
                 alt={card.name}
-                // ✅ 画像は親にフィットさせて余白を切る
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // もし画像読み込み失敗時に代替（任意）
                   e.currentTarget.src =
                     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='20'%3Eno image%3C/text%3E%3C/svg%3E";
                 }}
               />
             </div>
 
-            {/* 名前は行数制限して高さを揃える（必要なら） */}
-            <p className="text-center mt-2 text-sm font-medium w-full line-clamp-2">
+            {/* ✅ タイトル：自動折り返し＋2行固定 */}
+            <p className="text-center mt-2 text-sm font-medium w-full break-words whitespace-normal leading-tight line-clamp-2 h-[3em]">
               {cleanCardName(card.name)}
             </p>
 
-            <div className="flex items-center mt-3 w-full justify-center">
+            {/* ✅ カウント調整 */}
+            <div className="flex items-center mt-2 w-full justify-center">
               <button
                 onClick={() => handleDecrease(i)}
                 className="bg-gray-300 px-3 py-1 rounded-l"
